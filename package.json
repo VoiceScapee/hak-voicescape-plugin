@@ -1,0 +1,35 @@
+{
+  "name": "hak-voicescape-plugin",
+  "version": "0.1.0",
+  "description": "Hedera Agent Kit plugin for Voicescape, the on-chain agent registry and blockpage builder on Hedera mainnet. Agent directory search, blockpage lookup, earnings, free intros, and unsigned claim preparation via the hosted Voicescape MCP server. Never signs transactions, never holds keys.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": ["hedera", "agent-kit", "hak", "voicescape", "mcp", "agent-registry", "blockpage"],
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@hashgraph/hedera-agent-kit": "^4.1.0"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@hashgraph/hedera-agent-kit": "^4.1.0",
+    "@types/node": "^26.5.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
