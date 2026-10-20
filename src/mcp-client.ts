@@ -18,21 +18,12 @@ type FetchImpl = typeof fetch;
 
 let requestId = 0;
 
-/**
- * Call one Voicescape MCP tool and return its text output.
- *
- * MCP tool results come back as content parts; Voicescape tools return a
- * single JSON text part. Tool-level failures arrive as `isError: true`
- * content — that text is returned verbatim so the calling agent can read
- * and react to the server's own error message. Transport/protocol failures
- * throw.
- */
-export async function callVoicescapeTool(
-  name: string,
-  args: Record<string, unknown>,
-  fetchImpl: FetchImpl = fetch,
-  timeoutMs = 30_000,
-): Promise<string> {
+async function jsonRpcRequest(
+  method: string,
+  params: Record<string, unknown>,
+  fetchImpl: FetchImpl,
+  timeoutMs: number,
+): Promise<Record<string, unknown>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response;
@@ -46,8 +37,8 @@ export async function callVoicescapeTool(
       body: JSON.stringify({
         jsonrpc: "2.0",
         id: ++requestId,
-        method: "tools/call",
-        params: { name, arguments: args },
+        method,
+        params,
       }),
       signal: controller.signal,
     });
@@ -66,15 +57,37 @@ export async function callVoicescapeTool(
   if (payload.error) {
     const err = payload.error as { message?: string };
     throw new Error(
-      `Voicescape MCP error from tool "${name}": ${err.message ?? JSON.stringify(payload.error).slice(0, 200)}`,
+      `Voicescape MCP error for "${method}": ${err.message ?? JSON.stringify(payload.error).slice(0, 200)}`,
     );
   }
+  return (payload.result ?? {}) as Record<string, unknown>;
+}
 
-  const result = (payload.result ?? {}) as {
-    content?: Array<{ type?: string; text?: string }>;
-    structuredContent?: unknown;
-  };
-  const texts = (result.content ?? [])
+/**
+ * Call one Voicescape MCP tool and return its text output.
+ *
+ * MCP tool results come back as content parts; Voicescape tools return a
+ * single JSON text part. Tool-level failures arrive as `isError: true`
+ * content — that text is returned verbatim so the calling agent can read
+ * and react to the server's own error message. Transport/protocol failures
+ * throw.
+ */
+export async function callVoicescapeTool(
+  name: string,
+  args: Record<string, unknown>,
+  fetchImpl: FetchImpl = fetch,
+  timeoutMs = 30_000,
+): Promise<string> {
+  const result = await jsonRpcRequest(
+    "tools/call",
+    { name, arguments: args },
+    fetchImpl,
+    timeoutMs,
+  );
+  const content = result.content as
+    | Array<{ type?: string; text?: string }>
+    | undefined;
+  const texts = (content ?? [])
     .filter((part) => part.type === "text" && typeof part.text === "string")
     .map((part) => part.text as string);
   if (texts.length > 0) return texts.join("\n");
@@ -82,6 +95,24 @@ export async function callVoicescapeTool(
     return JSON.stringify(result.structuredContent);
   }
   return JSON.stringify(result);
+}
+
+/**
+ * The number of tools the hosted MCP server exposes RIGHT NOW, read from
+ * its own tools/list. Never hard-code a tool count anywhere in this
+ * plugin — the server's count changes as tools ship, and this is the one
+ * place that reports it.
+ */
+export async function fetchVoicescapeToolCount(
+  fetchImpl: FetchImpl = fetch,
+  timeoutMs = 15_000,
+): Promise<number> {
+  const result = await jsonRpcRequest("tools/list", {}, fetchImpl, timeoutMs);
+  const tools = result.tools as unknown[] | undefined;
+  if (!Array.isArray(tools)) {
+    throw new Error("Voicescape MCP tools/list returned no tools array");
+  }
+  return tools.length;
 }
 
 /**

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { callVoicescapeTool, parseJsonRpcBody } from "../src/mcp-client.js";
+import {
+  callVoicescapeTool,
+  fetchVoicescapeToolCount,
+  parseJsonRpcBody,
+} from "../src/mcp-client.js";
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
   return {
@@ -83,5 +87,32 @@ describe("callVoicescapeTool", () => {
     await expect(
       callVoicescapeTool("get_started", {}, fetchImpl as never),
     ).rejects.toThrow("HTTP 503");
+  });
+});
+
+describe("fetchVoicescapeToolCount", () => {
+  it("counts the tools in a live tools/list response", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        jsonrpc: "2.0",
+        id: 1,
+        result: { tools: [{ name: "a" }, { name: "b" }, { name: "c" }] },
+      }),
+    );
+    await expect(fetchVoicescapeToolCount(fetchImpl as never)).resolves.toBe(3);
+    const [, init] = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(JSON.parse(init.body as string).method).toBe("tools/list");
+  });
+
+  it("throws when tools/list has no tools array", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ jsonrpc: "2.0", id: 1, result: {} }),
+    );
+    await expect(fetchVoicescapeToolCount(fetchImpl as never)).rejects.toThrow(
+      "no tools array",
+    );
   });
 });

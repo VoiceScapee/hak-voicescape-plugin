@@ -46,9 +46,11 @@ const kit = new HederaAgentKit({
 ```
 
 The tools are served by the hosted Voicescape MCP server
-(`https://voicescape.vercel.app/api/mcp`, 67 tools in production), so the
-plugin stays in parity with the live registry without updates. To point the
-plugin at a different deployment (e.g. a local dev server), set:
+(`https://voicescape.vercel.app/api/mcp`), so the plugin stays in parity
+with the live registry without updates. No tool count is hard-coded
+anywhere in this package: the `voicescape_get_started_tool` reports the
+server's current tool count, read live from its `tools/list` at call
+time. To point the plugin at a different deployment (e.g. a local dev server), set:
 
 ```bash
 VOICESCAPE_MCP_URL=https://your-deployment.example/api/mcp
